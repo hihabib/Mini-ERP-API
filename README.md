@@ -1,104 +1,82 @@
 # Mini-ERP API
 
-This repository contains the backend REST API for the Mini-ERP (Inventory & Sales Management System), developed using Node.js, Express, TypeScript, Mongoose, and Socket.io.
+A robust RESTful backend API for the Mini-ERP application, providing inventory, sales, and role-based access management. Built with Node.js, Express, TypeScript, and MongoDB.
 
-## Tech Stack
-- **Runtime Environment:** Node.js
-- **Framework:** Express
-- **Language:** TypeScript
-- **Database:** MongoDB (Requires Replica Set for Transactions)
-- **ODM:** Mongoose
-- **Validation:** Zod
-- **Real-Time Engine:** Socket.io
-- **Testing:** Vitest
-- **Linting & Formatting:** ESLint & Prettier
-- **API Documentation:** Swagger / OpenAPI
+## Features
+- **Authentication & Authorization**: Secure JWT-based authentication with robust role-based access control (RBAC).
+- **Inventory Management**: Create, read, update, and delete products with image upload support.
+- **Sales (POS)**: Process sales with atomic operations to ensure consistent stock deductions.
+- **Real-Time Updates**: Socket.io integration to broadcast live stock changes and new sales across all connected clients.
+- **API Documentation**: Interactive Swagger documentation to explore and test endpoints.
+- **Automated Testing**: Comprehensive test suite using Vitest and MongoDB Memory Server.
 
-## Prerequisites
-- Node.js (v18+)
-- `pnpm` package manager
-- **MongoDB Replica Set**: A replica set is strictly required because the sales module utilizes MongoDB ACID Transactions. You can start a local replica set using Docker Compose:
-  ```bash
-  docker-compose up -d
-  ```
+## Technology Stack
+- **Runtime**: Node.js
+- **Framework**: Express.js
+- **Language**: TypeScript
+- **Database**: MongoDB (Mongoose)
+- **Validation**: Zod
+- **Real-Time**: Socket.io
+- **Testing**: Vitest, Supertest
+- **File Uploads**: Multer
 
-## Getting Started
+## Project Setup & Installation
 
-1. **Install dependencies:**
+### Prerequisites
+- Node.js (v22+)
+- pnpm (v11+)
+- A MongoDB instance (e.g., MongoDB Atlas or a local MongoDB server)
+
+### Installation
+1. Install dependencies:
    ```bash
    pnpm install
    ```
 
-2. **Configure Environment Variables:**
-   Copy `.env.example` to `.env` and fill out your variables:
+2. Configure environment variables:
+   Create a `.env` file in the root of the project with the following configuration:
    ```env
-   PORT=5000
-   MONGODB_URI=mongodb://localhost:27017/mini-erp
-   JWT_SECRET=your_secret_key
-   JWT_EXPIRES_IN=1h
-   JWT_REFRESH_SECRET=your_refresh_secret
+   NODE_ENV=development
+   PORT=8000
+   MONGO_URI=mongodb://localhost:27017/mini-erp
+   JWT_ACCESS_SECRET=your_access_secret_key
+   JWT_REFRESH_SECRET=your_refresh_secret_key
+   JWT_ACCESS_EXPIRES_IN=15m
    JWT_REFRESH_EXPIRES_IN=7d
+   UPLOAD_DIR=uploads/
+   MAX_UPLOAD_SIZE_MB=5
+   CORS_ORIGIN=http://localhost:5173
    ```
 
-3. **Seed Database:**
-   To populate initial users, roles, and permissions (run this only once!):
+3. Seed the database (Important):
+   Run the seed script to create initial roles and the default admin and employee users:
    ```bash
-   pnpm run seed
+   pnpm seed
    ```
+   *Default Admin credentials:*
+   - Email: `admin@mini-erp.dev`
+   - Password: `Admin@1234!`
 
-4. **Start the Development Server:**
-   ```bash
-   pnpm run dev
-   ```
+### Running the API
 
-## Available Scripts
-- `pnpm run dev`: Starts the server in watch mode using `tsx`.
-- `pnpm run build`: Compiles TypeScript to the `dist` folder.
-- `pnpm run start`: Runs the built application.
-- `pnpm run test`: Runs the Vitest test suite.
-- `pnpm run test:coverage`: Runs the test suite and generates a coverage report.
-- `pnpm run lint`: Runs ESLint checks.
-- `pnpm run typecheck`: Runs TypeScript type checking without emitting files.
-- `pnpm run seed`: Seeds the database.
-
-## API Documentation
-Once the server is running, you can access the Swagger UI documentation at:
-**[http://localhost:5000/api/docs](http://localhost:5000/api/docs)**
-
-## Project Structure
-This API utilizes a domain/feature-based modular architecture to ensure high cohesion and loose coupling.
-
-```
-src/
-├── config/           # Environment, Database, and Socket configurations
-├── docs/             # Swagger setup and configurations
-├── middlewares/      # Global middlewares (Auth, Roles, Errors, Validation)
-├── modules/          # Feature domains
-│   ├── auth/         # Authentication and sessions
-│   ├── dashboard/    # Aggregation statistics
-│   ├── product/      # Product catalog and inventory
-│   ├── role/         # Roles and permission management
-│   ├── sale/         # Sales, transactions, and price snapshots
-│   └── user/         # User management
-├── scripts/          # Seeding and operational scripts
-├── shared/           # Cross-domain utilities (ApiError, QueryBuilder, etc.)
-└── tests/            # Global test setup files
+**Development Mode** (with hot-reload):
+```bash
+pnpm dev
 ```
 
-## Socket.io Real-Time Events
-The server emits the following real-time events to all connected clients:
-- `stock:updated`: Fired when a sale is completed, carrying the updated `stockQuantity` of the purchased products.
-- `sale:created`: Fired when a new sale transaction has been fully committed.
+**Production Build**:
+```bash
+pnpm build
+pnpm start
+```
 
-## Testing
-We enforce a strict Test-Driven Development (TDD) cycle. The continuous integration workflows ensure tests maintain the following coverage thresholds:
-- Statements: 80%
-- Branches: 75%
-- Functions: 80%
-- Lines: 80%
+### Documentation
+Once the server is running, the Swagger API documentation is accessible at:
+- `http://localhost:8000/api/docs`
 
-Run `pnpm run test` or `pnpm run test:coverage` to execute the full suite.
-
-## Known Limitations & Deployment Notes
-- **Transactions:** Deployments *must* connect to a MongoDB cluster with a configured replica set. Standard standalone instances will throw transaction errors.
-- **Image Uploads:** Currently, images are saved locally to the `/uploads` directory via multer. For production, consider swapping the multer configuration to use an S3/Cloud Storage provider.
+### Testing
+Run the test suite (requires no external DB, uses in-memory MongoDB):
+```bash
+pnpm test
+pnpm test:coverage
+```

@@ -9,7 +9,7 @@ Read it fully before writing any code or suggesting any changes.
 
 | Concern | Technology |
 |---|---|
-| Runtime | Node.js LTS |
+| Runtime | Node.js v22+ |
 | Framework | Express.js |
 | Language | TypeScript — `strict: true`, `noImplicitAny: true` |
 | Database | MongoDB + Mongoose |
@@ -197,8 +197,8 @@ changing `socket.ts`, not every call site.
 | `stock:updated` | A sale commits successfully | `{ updates: [{ productId: string, newStock: number }] }` |
 | `sale:created` | A sale commits successfully | `{ saleId: string, grandTotal: number, itemCount: number, createdAt: Date }` |
 
-Events are emitted **after** the MongoDB transaction commits, so listeners always see
-consistent data. A socket emission failure never rolls back the sale.
+Events are emitted **after** the manual atomic stock updates (`$inc`) succeed, so listeners always see
+consistent data. A socket emission failure never rolls back the sale. (Note: We use manual atomic updates and rollbacks rather than MongoDB replica-set transactions to ensure the API can run on any MongoDB deployment without Docker.)
 
 **Dashboard** is a passive listener of these events (frontend side only) — it emits no
 events of its own. When `stock:updated` or `sale:created` arrive on the client, the
