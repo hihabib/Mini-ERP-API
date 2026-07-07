@@ -2,15 +2,22 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { env } from './config/env.js';
 import { globalErrorHandler } from './middlewares/error.middleware.js';
 import { sendSuccess } from './shared/apiResponse.js';
 import authRouter from './modules/auth/auth.routes.js';
 
+// Side-effect imports: register all Mongoose models before any route runs,
+// so populate() resolves regardless of which endpoint handles the first request.
+import './modules/user/user.model.js';
+import './modules/role/role.model.js';
+import './modules/role/permission.model.js';
+import './modules/product/product.model.js';
+import './modules/sale/sale.model.js';
+
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true }));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
