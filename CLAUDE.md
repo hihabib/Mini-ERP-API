@@ -35,6 +35,7 @@ Read it fully before writing any code or suggesting any changes.
    - All thrown errors **must** use `shared/ApiError.ts`.
    - Request validation uses the `validate` middleware from `middlewares/validate.middleware.ts`.
 4. **Database-driven roles and permissions** — roles and permissions are stored in MongoDB, evaluated at runtime via `middlewares/permission.middleware.ts`. Never hardcode role names or permission strings anywhere in application code.
+   - The default roles seeded via `pnpm seed` are **Admin**, **Manager**, and **Employee**.
 5. **Swappable interfaces** — anything that may change provider (image storage, email, etc.) must be accessed through an interface/adapter so the module using it does not need rewriting when the provider changes.
 6. **Never call `process.env` directly** — import from `src/config/env.ts` only.
 
@@ -60,13 +61,20 @@ src/
 ├── config/
 │   ├── env.ts                  # Validated env — import from here, never process.env
 │   ├── db.ts                   # Mongoose connect/disconnect
-│   └── socket.ts               # Socket.io init
-├── modules/<feature>/
-│   ├── <feature>.routes.ts
-│   ├── <feature>.controller.ts
-│   ├── <feature>.service.ts
-│   ├── <feature>.validation.ts
-│   └── <feature>.test.ts
+│   └── socket.ts               # Socket.io init + emitStockUpdated / emitSaleCreated helpers
+├── modules/
+│   ├── auth/                   # Login, logout, refresh, /me
+│   ├── dashboard/              # Aggregated stats endpoint
+│   ├── product/                # CRUD + image upload
+│   ├── role/                   # GET /roles (read-only; roles are seeded, not created via API)
+│   ├── sale/                   # POS — atomic stock decrement + socket events
+│   └── user/                   # User CRUD + role assignment
+│       Each module follows the pattern:
+│       ├── <feature>.routes.ts
+│       ├── <feature>.controller.ts
+│       ├── <feature>.service.ts
+│       ├── <feature>.validation.ts  (omitted for role — no write endpoints)
+│       └── <feature>.test.ts
 ├── middlewares/
 │   ├── auth.middleware.ts      # JWT verification
 │   ├── permission.middleware.ts # Dynamic permission check
@@ -74,10 +82,17 @@ src/
 │   └── error.middleware.ts     # Global error handler
 ├── shared/
 │   ├── apiResponse.ts          # sendSuccess / sendError
-│   └── ApiError.ts             # Custom ApiError class
+│   ├── ApiError.ts             # Custom ApiError class + subclasses
+│   ├── asyncHandler.ts         # Eliminates try/catch in controllers
+│   ├── jwt.ts                  # signAccessToken / signRefreshToken / verify*
+│   ├── queryBuilder/
+│   │   └── QueryBuilder.ts     # Chainable search / filter / sort / paginate
+│   └── storage/
+│       ├── storage.interface.ts
+│       └── local.storage.ts    # Multer disk storage + StorageAdapter impl
 └── docs/swagger.ts
 tests/
-└── setup.ts                    # In-memory MongoDB lifecycle for tests
+└── setup.ts                    # MongoMemoryReplSet lifecycle (beforeAll/afterEach/afterAll)
 ```
 
 ---
@@ -100,16 +115,19 @@ Key constraints the template enforces:
 
 ## Coverage Thresholds (enforced — `pnpm test:coverage` fails if not met)
 
-| Metric | Minimum |
-|---|---|
-| Statements | 80% |
-| Branches | 75% |
-| Functions | 80% |
-| Lines | 80% |
+| Metric | Minimum | Current |
+|---|---|---|
+| Statements | 80% | 98.34% |
+| Branches | 75% | 88.30% |
+| Functions | 80% | 100% |
+| Lines | 80% | 99.00% |
 
 Excluded from measurement: `src/server.ts`, `src/app.ts`, `src/config/env.ts`,
 `src/config/db.ts`, `src/config/socket.ts`, `src/docs/swagger.ts`, `src/scripts/**`
 (bootstrap/startup/operational code — not services, controllers, or middleware).
+
+There are 13 test files and 150 tests total. The suite uses `MongoMemoryReplSet` (single-node
+replica set) — required for oplog support used by the sale service's atomic `$inc` rollback path.
 
 ---
 
@@ -120,7 +138,7 @@ The following tools/plugins are configured for this repository. Use them as desc
 | Tool | When to use |
 |---|---|
 | **Context7 MCP** | Pull current docs for Express, Mongoose, Zod, Socket.io, Swagger, and any other library before writing implementation code. Never rely on training-data knowledge for library APIs. |
-| **MongoDB MCP** | Inspect live schema, run aggregations, and verify data during development against the Dockerized local MongoDB instance. |
+| **MongoDB MCP** | Inspect live schema, run aggregations, and verify data during development against the local MongoDB instance. |
 | **superpowers** | Enforced TDD workflow: plan → write failing test → implement → verify. Use for every feature. |
 | **security-guidance** | Automatic vulnerability scanning on file edits and commits. Treat any finding as a blocker before merging. |
 | **typescript-lsp** | Get real-time type diagnostics. Run before concluding a task to catch type errors the compiler would find. |

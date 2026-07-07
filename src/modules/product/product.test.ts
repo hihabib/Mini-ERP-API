@@ -177,6 +177,24 @@ describe('Product module', () => {
       expect(res.status).toBe(401);
     });
 
+    it('returns 400 when image exceeds the maximum upload size', async () => {
+      // 6 MB exceeds the 5 MB default limit — triggers the LIMIT_FILE_SIZE multer error
+      const oversizedBuffer = Buffer.alloc(6 * 1024 * 1024, 0);
+
+      const res = await request
+        .post('/api/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('image', oversizedBuffer, { filename: 'big.png', contentType: 'image/png' })
+        .field('name', 'Big Widget')
+        .field('sku', 'BIG-001')
+        .field('category', 'tools')
+        .field('purchasePrice', '10')
+        .field('sellingPrice', '20');
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/too large|max/i);
+    });
+
     it('returns 400 when image type is not jpeg/png/webp', async () => {
       const res = await request
         .post('/api/products')

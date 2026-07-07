@@ -70,6 +70,11 @@ describe('Auth module', () => {
       permissions: [createPerm._id, viewPerm._id],
       isSystemRole: true,
     });
+    const managerRole = await Role.create({
+      name: 'Manager',
+      permissions: [createPerm._id, viewPerm._id],
+      isSystemRole: false,
+    });
     const employeeRole = await Role.create({
       name: 'Employee',
       permissions: [viewPerm._id],
@@ -81,6 +86,12 @@ describe('Auth module', () => {
       email: 'admin@test.com',
       password: 'Test@1234',
       role: adminRole._id,
+    });
+    await User.create({
+      name: 'Manager User',
+      email: 'manager@test.com',
+      password: 'Test@1234',
+      role: managerRole._id,
     });
     await User.create({
       name: 'Employee User',

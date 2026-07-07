@@ -10,6 +10,8 @@ import authRouter from './modules/auth/auth.routes.js';
 import productRouter from './modules/product/product.routes.js';
 import saleRouter from './modules/sale/sale.routes.js';
 import dashboardRouter from './modules/dashboard/dashboard.routes.js';
+import userRouter from './modules/user/user.routes.js';
+import roleRouter from './modules/role/role.routes.js';
 import { swaggerSpec } from './docs/swagger.js';
 import { env } from './config/env.js';
 
@@ -44,6 +46,8 @@ app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
 app.use('/api/sales', saleRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/users', userRouter);
+app.use('/api/roles', roleRouter);
 
 app.use(globalErrorHandler);
 

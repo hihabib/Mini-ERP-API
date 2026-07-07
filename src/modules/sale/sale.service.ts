@@ -50,7 +50,7 @@ export async function createSale(data: CreateSaleInput, userId: string) {
       Product.findOneAndUpdate(
         { _id: item.product, stockQuantity: { $gte: item.quantity } },
         { $inc: { stockQuantity: -item.quantity } },
-        { new: true },
+        { returnDocument: 'after' },
       ),
     ),
   );

@@ -29,6 +29,9 @@ const PERMISSIONS = [
   { key: 'sale:create', description: 'Create a new sale', module: 'sale' },
   { key: 'sale:view', description: 'View sales history', module: 'sale' },
   { key: 'dashboard:view', description: 'Access the dashboard', module: 'dashboard' },
+  { key: 'user:create', description: 'Create a new user', module: 'user' },
+  { key: 'user:view', description: 'View users', module: 'user' },
+  { key: 'user:update', description: 'Update a user', module: 'user' },
 ] as const;
 
 // ─── Role definitions ──────────────────────────────────────────────────────────
@@ -44,10 +47,8 @@ const ROLES: { name: string; permissionKeys: string[] }[] = [
       'product:create',
       'product:view',
       'product:update',
-      'product:delete',
       'sale:create',
       'sale:view',
-      'dashboard:view',
     ],
   },
   {
@@ -123,6 +124,28 @@ async function seedEmployeeTestUser() {
   console.log('  ✓ Employee test user created');
 }
 
+async function seedManagerTestUser() {
+  console.log('Seeding manager test user...');
+  const managerRole = await Role.findOne({ name: 'Manager' });
+  if (!managerRole) {
+    throw new Error('Manager role not found — run role seed first');
+  }
+
+  const existing = await User.findOne({ email: 'manager@mini-erp.dev' });
+  if (existing) {
+    console.log('  ✓ Manager test user already exists, skipping');
+    return;
+  }
+
+  await User.create({
+    name: 'Test Manager',
+    email: 'manager@mini-erp.dev',
+    password: 'Manager@1234!',
+    role: managerRole._id,
+  });
+  console.log('  ✓ Manager test user created');
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -134,6 +157,7 @@ async function main() {
     await seedPermissions();
     await seedRoles();
     await seedAdminUser(SEED_ADMIN_EMAIL!, SEED_ADMIN_PASSWORD!);
+    await seedManagerTestUser();
     await seedEmployeeTestUser();
     console.log('\nSeed complete.\n');
   } finally {
