@@ -368,6 +368,7 @@ describe('Sale module', () => {
 
     it('returns a paginated list with meta', async () => {
       const res = await request.get('/api/sales').set('Authorization', `Bearer ${adminToken}`);
+      if (res.status === 400) console.log('400 Error Body:', res.body);
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);

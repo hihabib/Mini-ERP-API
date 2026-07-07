@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { Product } from '../product/product.model.js';
 import { Sale } from './sale.model.js';
 import { NotFoundError, InsufficientStockError } from '../../shared/ApiError.js';
@@ -7,91 +6,91 @@ import { emitStockUpdated, emitSaleCreated } from '../../config/socket.js';
 import type { CreateSaleInput } from './sale.validation.js';
 
 export async function createSale(data: CreateSaleInput, userId: string) {
-  const session = await mongoose.connection.startSession();
+  // Fetch all referenced products
+  const productIds = data.items.map((i) => i.product);
+  const products = await Product.find({ _id: { $in: productIds } });
 
-  // Variables populated inside the transaction callback and read after commit.
-  let saleId = '';
-  let grandTotal = 0;
-  let itemCount = 0;
-  let createdAt = new Date();
-  let stockUpdates: Array<{ productId: string; newStock: number }> = [];
-  let saleDoc: Awaited<ReturnType<typeof Sale.create>>[number] | undefined;
-
-  try {
-    await session.withTransaction(async () => {
-      // Fetch all referenced products inside the transaction for snapshot isolation.
-      const productIds = data.items.map((i) => i.product);
-      const products = await Product.find({ _id: { $in: productIds } }).session(session);
-
-      // Validate existence — name the first missing product ID.
-      for (const item of data.items) {
-        const found = products.find((p) => p._id.toString() === item.product);
-        if (!found) throw new NotFoundError(`Product '${item.product}' not found`);
-      }
-
-      // Validate stock — collect all failures so the error names every problem.
-      const stockProblems: string[] = [];
-      for (const item of data.items) {
-        const p = products.find((p) => p._id.toString() === item.product)!;
-        if (p.stockQuantity < item.quantity) {
-          stockProblems.push(
-            `Insufficient stock for '${p.name}': ${p.stockQuantity} available, ${item.quantity} requested`,
-          );
-        }
-      }
-      if (stockProblems.length > 0) {
-        throw new InsufficientStockError(stockProblems.join('; '));
-      }
-
-      // Build embedded sale items with price snapshots.
-      const saleItems = data.items.map((item) => {
-        const p = products.find((p) => p._id.toString() === item.product)!;
-        return {
-          product: p._id,
-          productNameSnapshot: p.name,
-          quantity: item.quantity,
-          unitPriceSnapshot: p.sellingPrice,
-          subtotal: p.sellingPrice * item.quantity,
-        };
-      });
-
-      grandTotal = saleItems.reduce((sum, i) => sum + i.subtotal, 0);
-
-      // Decrement stock for all items atomically within the transaction.
-      await Promise.all(
-        data.items.map((item) =>
-          Product.findByIdAndUpdate(
-            item.product,
-            { $inc: { stockQuantity: -item.quantity } },
-            { session },
-          ),
-        ),
-      );
-
-      // Create the sale document within the same transaction.
-      [saleDoc] = await Sale.create([{ items: saleItems, grandTotal, soldBy: userId }], {
-        session,
-      });
-
-      // Capture socket payload from transaction-consistent data.
-      saleId = saleDoc._id.toString();
-      itemCount = saleItems.length;
-      createdAt = saleDoc.createdAt;
-      stockUpdates = data.items.map((item) => {
-        const p = products.find((p) => p._id.toString() === item.product)!;
-        return { productId: item.product, newStock: p.stockQuantity - item.quantity };
-      });
-    });
-  } finally {
-    await session.endSession();
+  // Validate existence
+  for (const item of data.items) {
+    const found = products.find((p) => p._id.toString() === item.product);
+    if (!found) throw new NotFoundError(`Product '${item.product}' not found`);
   }
 
-  // Emit real-time events after the transaction commits — outside the session so
-  // a socket error cannot trigger a transaction rollback.
+  // Validate stock
+  const stockProblems: string[] = [];
+  for (const item of data.items) {
+    const p = products.find((p) => p._id.toString() === item.product)!;
+    if (p.stockQuantity < item.quantity) {
+      stockProblems.push(
+        `Insufficient stock for '${p.name}': ${p.stockQuantity} available, ${item.quantity} requested`,
+      );
+    }
+  }
+  if (stockProblems.length > 0) {
+    throw new InsufficientStockError(stockProblems.join('; '));
+  }
+
+  // Build embedded sale items with price snapshots
+  const saleItems = data.items.map((item) => {
+    const p = products.find((p) => p._id.toString() === item.product)!;
+    return {
+      product: p._id,
+      productNameSnapshot: p.name,
+      quantity: item.quantity,
+      unitPriceSnapshot: p.sellingPrice,
+      subtotal: p.sellingPrice * item.quantity,
+    };
+  });
+
+  const grandTotal = saleItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+  // Decrement stock for all items atomically
+  const decrementResults = await Promise.all(
+    data.items.map((item) =>
+      Product.findOneAndUpdate(
+        { _id: item.product, stockQuantity: { $gte: item.quantity } },
+        { $inc: { stockQuantity: -item.quantity } },
+        { new: true },
+      ),
+    ),
+  );
+
+  // If any product failed to update (concurrent stock depletion)
+  if (decrementResults.includes(null)) {
+    // Manually rollback the ones that succeeded
+    await Promise.all(
+      decrementResults.map((result, index) => {
+        if (result) {
+          return Product.findByIdAndUpdate(result._id, {
+            $inc: { stockQuantity: data.items[index].quantity },
+          });
+        }
+        return Promise.resolve();
+      }),
+    );
+    throw new InsufficientStockError(
+      'One or more products had insufficient stock during checkout.',
+    );
+  }
+
+  // Create the sale document
+  const createdSales = await Sale.create([{ items: saleItems, grandTotal, soldBy: userId }]);
+  const saleDoc = createdSales[0];
+
+  // Capture socket payload
+  const saleId = saleDoc._id.toString();
+  const itemCount = saleItems.length;
+  const createdAt = saleDoc.createdAt;
+  const stockUpdates = data.items.map((item) => {
+    const p = products.find((p) => p._id.toString() === item.product)!;
+    return { productId: item.product, newStock: p.stockQuantity - item.quantity };
+  });
+
+  // Emit real-time events
   emitStockUpdated(stockUpdates);
   emitSaleCreated({ saleId, grandTotal, itemCount, createdAt });
 
-  return saleDoc!;
+  return saleDoc;
 }
 
 export async function listSales(queryParams: Record<string, unknown>) {
