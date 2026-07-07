@@ -174,3 +174,7 @@ changing `socket.ts`, not every call site.
 
 Events are emitted **after** the MongoDB transaction commits, so listeners always see
 consistent data. A socket emission failure never rolls back the sale.
+
+**Dashboard** is a passive listener of these events (frontend side only) — it emits no
+events of its own. When `stock:updated` or `sale:created` arrive on the client, the
+frontend should re-fetch `/api/dashboard/stats` or update its local state directly.

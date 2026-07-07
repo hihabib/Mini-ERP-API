@@ -9,6 +9,7 @@ import { sendSuccess } from './shared/apiResponse.js';
 import authRouter from './modules/auth/auth.routes.js';
 import productRouter from './modules/product/product.routes.js';
 import saleRouter from './modules/sale/sale.routes.js';
+import dashboardRouter from './modules/dashboard/dashboard.routes.js';
 import { swaggerSpec } from './docs/swagger.js';
 import { env } from './config/env.js';
 
@@ -42,6 +43,7 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
 app.use('/api/sales', saleRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 app.use(globalErrorHandler);
 
