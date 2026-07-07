@@ -1,7 +1,7 @@
-import type { Request, Response, NextFunction } from 'express';
 import * as authService from './auth.service.js';
 import { sendSuccess } from '../../shared/apiResponse.js';
 import { ApiError } from '../../shared/ApiError.js';
+import { asyncHandler } from '../../shared/asyncHandler.js';
 import { env } from '../../config/env.js';
 
 const REFRESH_COOKIE = 'refreshToken';
@@ -16,48 +16,32 @@ function cookieOptions(maxAge: number) {
   };
 }
 
-export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const { email, password } = req.body as { email: string; password: string };
-    const { accessToken, refreshToken, user } = await authService.login(email, password);
+export const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body as { email: string; password: string };
+  const { accessToken, refreshToken, user } = await authService.login(email, password);
 
-    res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
-    sendSuccess(res, 200, 'Login successful', { accessToken, user });
-  } catch (err) {
-    next(err);
+  res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions(REFRESH_MAX_AGE_MS));
+  sendSuccess(res, { message: 'Login successful', data: { accessToken, user } });
+});
+
+export const refresh = asyncHandler(async (req, res) => {
+  const token = req.cookies[REFRESH_COOKIE] as string | undefined;
+
+  if (!token) {
+    throw new ApiError(401, 'Refresh token missing');
   }
-}
 
-export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const token = req.cookies[REFRESH_COOKIE] as string | undefined;
+  const { accessToken } = await authService.refreshTokens(token);
+  sendSuccess(res, { message: 'Token refreshed', data: { accessToken } });
+});
 
-    if (!token) {
-      throw new ApiError(401, 'Refresh token missing');
-    }
+export const logout = asyncHandler(async (_req, res) => {
+  res.clearCookie(REFRESH_COOKIE, cookieOptions(0));
+  sendSuccess(res, { message: 'Logged out successfully', data: {} });
+});
 
-    const { accessToken } = await authService.refreshTokens(token);
-    sendSuccess(res, 200, 'Token refreshed', { accessToken });
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function logout(_req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    res.clearCookie(REFRESH_COOKIE, cookieOptions(0));
-    sendSuccess(res, 200, 'Logged out successfully', {});
-  } catch (err) {
-    next(err);
-  }
-}
-
-export async function me(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    // authenticate middleware guarantees req.user is set before this handler runs
-    const user = await authService.getMe(req.user!.userId);
-    sendSuccess(res, 200, 'User retrieved', user);
-  } catch (err) {
-    next(err);
-  }
-}
+export const me = asyncHandler(async (req, res) => {
+  // authenticate middleware guarantees req.user is set before this handler runs
+  const user = await authService.getMe(req.user!.userId);
+  sendSuccess(res, { message: 'User retrieved', data: user });
+});

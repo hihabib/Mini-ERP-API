@@ -110,3 +110,50 @@ The following tools/plugins are configured for this repository. Use them as desc
 ## Environment Variables
 
 All variables are validated at startup in `src/config/env.ts`. See `.env.example` for the full list and descriptions.
+
+---
+
+## Shared Utilities (use these everywhere — do not reinvent)
+
+| Utility | Location | Purpose |
+|---|---|---|
+| `sendSuccess` | `shared/apiResponse.ts` | Shape every success response. Signature: `sendSuccess(res, { statusCode?, message, data, meta? })`. |
+| `ApiError` + subclasses | `shared/ApiError.ts` | `NotFoundError`, `BadRequestError`, `UnauthorizedError`, `ForbiddenError`, `ConflictError`. Throw from services; the global error handler catches them. |
+| `asyncHandler` | `shared/asyncHandler.ts` | Wrap every controller function. Eliminates try/catch boilerplate and forwards thrown errors to the error handler automatically. |
+| `QueryBuilder` | `shared/queryBuilder/QueryBuilder.ts` | Chain `.search(fields).filter(excludes).sort().paginate()` on any Mongoose query, then call `.execute()` and `.countTotal()`. |
+
+---
+
+## HTTP Status Code Conventions
+
+Every route must follow these codes consistently — never improvise:
+
+| Code | When to use |
+|---|---|
+| `200` | Successful GET or PATCH |
+| `201` | Successful POST — resource created |
+| `204` | Successful DELETE — no response body |
+| `400` | Validation error (field-level errors map in response) |
+| `401` | Missing or invalid authentication |
+| `403` | Authenticated but lacking the required permission |
+| `404` | Resource not found |
+| `409` | Conflict — duplicate key, or a business-rule conflict |
+| `500` | Unhandled server error |
+
+---
+
+## API Response Shape
+
+Every response must conform to one of these two shapes:
+
+**Success:**
+```json
+{ "success": true, "message": "string", "data": {}, "meta": { "page": 1, "limit": 10, "total": 42 } }
+```
+(`meta` is only included on paginated list endpoints)
+
+**Error:**
+```json
+{ "success": false, "message": "string", "errors": { "field": "reason" } }
+```
+(`errors` is only included when there are field-level validation errors)

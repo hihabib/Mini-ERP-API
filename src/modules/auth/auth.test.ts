@@ -21,7 +21,7 @@ testApp.get(
   authenticate,
   requirePermission('product:create'),
   (_req: Request, res: Response) => {
-    sendSuccess(res, 200, 'ok', {});
+    sendSuccess(res, { message: 'ok', data: {} });
   },
 );
 testApp.use(globalErrorHandler);
@@ -124,12 +124,12 @@ describe('Auth module', () => {
 
     it('returns 422 when email is missing', async () => {
       const res = await request.post('/api/auth/login').send({ password: 'Test@1234' });
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
     });
 
     it('returns 422 when password is missing', async () => {
       const res = await request.post('/api/auth/login').send({ email: 'admin@test.com' });
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
     });
   });
 

@@ -30,6 +30,6 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 
-EXPOSE 5000
+EXPOSE 8000
 
 CMD ["node", "dist/server.js"]

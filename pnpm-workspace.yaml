@@ -1,4 +1,5 @@
 allowBuilds:
+  '@scarf/scarf': false
   bcrypt: true
   esbuild: true
   mongodb-memory-server: true

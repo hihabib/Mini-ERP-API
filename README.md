@@ -44,7 +44,7 @@ Open `.env` and fill in the required values:
 | Variable | Required | Description |
 |---|---|---|
 | `NODE_ENV` | no | `development` / `production` / `test` (default: `development`) |
-| `PORT` | no | HTTP server port (default: `5000`) |
+| `PORT` | no | HTTP server port (default: `8000`) |
 | `MONGO_URI` | **yes** | MongoDB connection string |
 | `JWT_ACCESS_SECRET` | **yes** | Secret for signing access tokens |
 | `JWT_ACCESS_EXPIRES_IN` | no | Access token TTL (default: `15m`) |
@@ -72,8 +72,8 @@ MongoDB is exposed on `localhost:27017`. Update `MONGO_URI` in `.env` if needed.
 pnpm dev
 ```
 
-The server starts at `http://localhost:5000`.  
-Health check: `GET http://localhost:5000/health`
+The server starts at `http://localhost:8000`.  
+Health check: `GET http://localhost:8000/health`
 
 ## Scripts
 
@@ -174,7 +174,7 @@ Build and run the API itself in Docker:
 
 ```bash
 docker build -t mini-erp-api .
-docker run -p 5000:5000 --env-file .env mini-erp-api
+docker run -p 8000:8000 --env-file .env mini-erp-api
 ```
 
 ## Architectural Principles

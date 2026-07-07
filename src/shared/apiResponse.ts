@@ -1,28 +1,24 @@
 import type { Response } from 'express';
 
-interface SuccessResponse<T> {
-  success: true;
+interface Meta {
+  page?: number;
+  limit?: number;
+  total?: number;
+}
+
+interface SuccessOptions<T> {
+  statusCode?: number;
   message: string;
   data: T;
+  meta?: Meta;
 }
 
-interface ErrorResponse {
-  success: false;
-  message: string;
-  errors?: unknown[];
-}
-
-export function sendSuccess<T>(res: Response, statusCode: number, message: string, data: T): void {
-  const body: SuccessResponse<T> = { success: true, message, data };
-  res.status(statusCode).json(body);
-}
-
-export function sendError(
-  res: Response,
-  statusCode: number,
-  message: string,
-  errors?: unknown[],
-): void {
-  const body: ErrorResponse = { success: false, message, ...(errors && { errors }) };
-  res.status(statusCode).json(body);
-}
+export const sendSuccess = <T>(res: Response, options: SuccessOptions<T>): void => {
+  const { statusCode = 200, message, data, meta } = options;
+  res.status(statusCode).json({
+    success: true,
+    message,
+    data,
+    ...(meta !== undefined && { meta }),
+  });
+};

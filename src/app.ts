@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import swaggerUi from 'swagger-ui-express';
 import { globalErrorHandler } from './middlewares/error.middleware.js';
 import { sendSuccess } from './shared/apiResponse.js';
 import authRouter from './modules/auth/auth.routes.js';
+import { swaggerSpec } from './docs/swagger.js';
 
 // Side-effect imports: register all Mongoose models before any route runs,
 // so populate() resolves regardless of which endpoint handles the first request.
@@ -23,9 +25,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.get('/health', (_req, res) => {
-  sendSuccess(res, 200, 'Server is healthy', { status: 'ok', timestamp: new Date().toISOString() });
+  sendSuccess(res, {
+    message: 'Server is healthy',
+    data: { status: 'ok', timestamp: new Date().toISOString() },
+  });
 });
 
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authRouter);
 
 app.use(globalErrorHandler);
