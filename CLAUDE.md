@@ -157,3 +157,20 @@ Every response must conform to one of these two shapes:
 { "success": false, "message": "string", "errors": { "field": "reason" } }
 ```
 (`errors` is only included when there are field-level validation errors)
+
+---
+
+## Socket Events
+
+All events are emitted on the default namespace. Emission is centralised through
+`emitStockUpdated` / `emitSaleCreated` in `src/config/socket.ts` — call those helpers,
+never `getIO().emit()` directly, so adding room-based targeting later only requires
+changing `socket.ts`, not every call site.
+
+| Event | Emitted when | Payload |
+|---|---|---|
+| `stock:updated` | A sale commits successfully | `{ updates: [{ productId: string, newStock: number }] }` |
+| `sale:created` | A sale commits successfully | `{ saleId: string, grandTotal: number, itemCount: number, createdAt: Date }` |
+
+Events are emitted **after** the MongoDB transaction commits, so listeners always see
+consistent data. A socket emission failure never rolls back the sale.

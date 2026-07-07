@@ -8,6 +8,7 @@ import { globalErrorHandler } from './middlewares/error.middleware.js';
 import { sendSuccess } from './shared/apiResponse.js';
 import authRouter from './modules/auth/auth.routes.js';
 import productRouter from './modules/product/product.routes.js';
+import saleRouter from './modules/sale/sale.routes.js';
 import { swaggerSpec } from './docs/swagger.js';
 import { env } from './config/env.js';
 
@@ -40,6 +41,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/auth', authRouter);
 app.use('/api/products', productRouter);
+app.use('/api/sales', saleRouter);
 
 app.use(globalErrorHandler);
 

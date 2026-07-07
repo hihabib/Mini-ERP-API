@@ -26,3 +26,33 @@ export function getIO(): SocketIOServer {
   if (!io) throw new Error('Socket.io not initialized');
   return io;
 }
+
+// Centralised emit helpers — call sites never reference getIO() directly,
+// so swapping the underlying broadcast (e.g. adding rooms) only touches here.
+function emit(event: string, payload: unknown): void {
+  try {
+    getIO().emit(event, payload);
+  } catch {
+    // Not fatal: socket may be uninitialized in test environments.
+  }
+}
+
+export interface StockUpdatePayload {
+  productId: string;
+  newStock: number;
+}
+
+export interface SaleCreatedPayload {
+  saleId: string;
+  grandTotal: number;
+  itemCount: number;
+  createdAt: Date;
+}
+
+export function emitStockUpdated(updates: StockUpdatePayload[]): void {
+  emit('stock:updated', { updates });
+}
+
+export function emitSaleCreated(summary: SaleCreatedPayload): void {
+  emit('sale:created', summary);
+}

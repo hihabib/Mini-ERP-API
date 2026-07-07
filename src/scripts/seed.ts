@@ -101,6 +101,28 @@ async function seedAdminUser(email: string, password: string) {
   console.log('  ✓ Admin user created');
 }
 
+async function seedEmployeeTestUser() {
+  console.log('Seeding employee test user...');
+  const employeeRole = await Role.findOne({ name: 'Employee' });
+  if (!employeeRole) {
+    throw new Error('Employee role not found — run role seed first');
+  }
+
+  const existing = await User.findOne({ email: 'employee@mini-erp.dev' });
+  if (existing) {
+    console.log('  ✓ Employee test user already exists, skipping');
+    return;
+  }
+
+  await User.create({
+    name: 'Test Employee',
+    email: 'employee@mini-erp.dev',
+    password: 'Employee@1234!',
+    role: employeeRole._id,
+  });
+  console.log('  ✓ Employee test user created');
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -112,6 +134,7 @@ async function main() {
     await seedPermissions();
     await seedRoles();
     await seedAdminUser(SEED_ADMIN_EMAIL!, SEED_ADMIN_PASSWORD!);
+    await seedEmployeeTestUser();
     console.log('\nSeed complete.\n');
   } finally {
     await mongoose.disconnect();

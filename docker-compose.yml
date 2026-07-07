@@ -5,10 +5,29 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
+    # --replSet enables transactions; --bind_ip_all exposes to host.
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     volumes:
       - mongo-data:/data/db
     environment:
       MONGO_INITDB_DATABASE: mini-erp
+    healthcheck:
+      # First boot: rs.status() throws → rs.initiate() runs.
+      # Subsequent boots: rs.status() succeeds → hello() confirms primary.
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - >-
+          try { rs.status() } catch(e) {
+            rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]})
+          };
+          quit(db.hello().isWritablePrimary ? 0 : 1)
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 10s
 
   mongo-express:
     image: mongo-express:latest
@@ -20,7 +39,8 @@ services:
       ME_CONFIG_MONGODB_SERVER: mongo
       ME_CONFIG_BASICAUTH: "false"
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     profiles:
       - admin
 

@@ -40,3 +40,9 @@ export class ConflictError extends ApiError {
     super(409, message);
   }
 }
+
+export class InsufficientStockError extends ApiError {
+  constructor(message = 'Insufficient stock') {
+    super(400, message);
+  }
+}
