@@ -40,6 +40,40 @@ const options: swaggerJsdoc.Options = {
           },
         },
       },
+      responses: {
+        BadRequest: {
+          description: 'Bad Request - Validation failed or malformed request',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ErrorResponse' },
+            },
+          },
+        },
+        Unauthorized: {
+          description: 'Unauthorized - Invalid, expired, or missing authentication token',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ErrorResponse' },
+            },
+          },
+        },
+        Forbidden: {
+          description: 'Forbidden - User lacks required permissions for this action',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ErrorResponse' },
+            },
+          },
+        },
+        NotFound: {
+          description: 'Not Found - The requested resource does not exist',
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ErrorResponse' },
+            },
+          },
+        },
+      },
     },
     security: [{ bearerAuth: [] }],
   },
