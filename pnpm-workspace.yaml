@@ -1,6 +1,4 @@
 allowBuilds:
-  esbuild: set this to true or false
-  mongodb-memory-server: set this to true or false
-onlyBuiltDependencies:
-  - esbuild
-  - mongodb-memory-server
+  bcrypt: true
+  esbuild: true
+  mongodb-memory-server: true

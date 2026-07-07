@@ -185,3 +185,37 @@ docker run -p 5000:5000 --env-file .env mini-erp-api
 4. **Swappable interfaces** — e.g. image storage moves from local disk to S3 without touching the product module
 5. **No `process.env` calls** — always import from `src/config/env.ts`
 6. **No feature ships without tests** — unit + integration coverage required for every module
+
+## Schema Migrations
+
+MongoDB is schemaless at the database level, so schema migrations here means one-off transform scripts that run against live data when a breaking schema change is made (e.g. renaming a field, changing a type, adding a required field to existing documents).
+
+**Convention:**
+
+- Scripts live in `src/scripts/migrations/`
+- File naming: `YYYY-MM-DD-short-description.ts`
+- Each script must document: what changed, which collection, and how existing documents are transformed
+- Run manually: `node_modules/.bin/tsx src/scripts/migrations/<filename>.ts`
+- Commit the script after running it — it serves as a permanent audit trail
+
+**When to write one:**
+
+| Change | Migration needed? |
+|---|---|
+| Adding a new optional field | No — existing docs simply lack the field |
+| Adding a new required field | Yes — backfill existing documents |
+| Renaming a field | Yes — rename in all existing documents |
+| Changing a field type | Yes — transform existing values |
+| Dropping a field | Optional — `$unset` for cleanup |
+
+## Seeding
+
+Populate the database with default permissions, roles, and an admin user:
+
+```bash
+pnpm seed
+```
+
+Required env vars: `MONGO_URI`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`.
+
+The seed is idempotent — running it multiple times is safe.
