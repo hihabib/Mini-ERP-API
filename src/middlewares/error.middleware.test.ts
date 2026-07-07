@@ -31,6 +31,11 @@ const app = express();
 app.use(express.json());
 
 const nameSchema = z.object({ name: z.string().min(1) });
+// Produces two issues at path=[] — exercises the '_root' key branch AND the duplicate-key guard.
+const rootRefineSchema = z.object({ name: z.string() }).superRefine((_, ctx) => {
+  ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Root error A', path: [] });
+  ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Root error B', path: [] });
+});
 
 // Routes that throw every error type we need to verify
 app.get(
@@ -89,6 +94,10 @@ app.post(
 app.post('/test/validate', validate(nameSchema), (_req: Request, res: Response) => {
   res.json({ success: true, message: 'ok', data: {} });
 });
+// superRefine produces path=[] issues, exercising the '_root' key and duplicate-key guard.
+app.post('/test/validate-root', validate(rootRefineSchema), (_req: Request, res: Response) => {
+  res.json({ success: true, message: 'ok', data: {} });
+});
 
 app.use(globalErrorHandler);
 
@@ -143,6 +152,15 @@ describe('Global error handler', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.message).toContain('email');
   });
+
+  it('translates Mongoose ValidationError to 400 with field-level errors', async () => {
+    // The route triggers UniqueDoc.create({ email: '' }) which fails the required validator.
+    const res = await request.post('/test/mongoose-validation');
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe('Validation failed');
+    expect(res.body.errors).toHaveProperty('email');
+  });
 });
 
 describe('validate() middleware', () => {
@@ -163,5 +181,14 @@ describe('validate() middleware', () => {
     const res = await request.post('/test/validate').send({});
     expect(res.status).toBe(400);
     expect(res.body.errors).toHaveProperty('name');
+  });
+
+  it('maps root-level Zod issues (path=[]) to the _root key and ignores duplicate paths', async () => {
+    // superRefine adds two issues at path=[] — first maps to _root, second is deduplicated.
+    const res = await request.post('/test/validate-root').send({ name: 'Alice' });
+    expect(res.status).toBe(400);
+    expect(res.body.errors).toHaveProperty('_root');
+    // Only the first message for '_root' should be kept (duplicate-key guard).
+    expect(res.body.errors['_root']).toBe('Root error A');
   });
 });

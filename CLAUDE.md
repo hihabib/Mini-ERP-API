@@ -86,6 +86,31 @@ tests/
 
 `pnpm test` calls `node_modules/.bin/vitest run` directly (not via `pnpm exec`) to bypass a pnpm v11 interactive build-approval prompt. Do not change this without testing first.
 
+## Test Template
+
+Every new module's test file must follow the standard shape defined in
+`docs/testing/backend-module-test-template.md`. When a feature prompt says "follow the
+standard module test template", use that file — do not re-derive the structure.
+
+Key constraints the template enforces:
+- `beforeAll` creates indexes; `beforeEach` re-seeds from scratch (global `afterEach` wipes collections)
+- Build a minimal `testApp` per test file — never import `src/app.ts`
+- `403` test for **every** permission-protected route
+- Socket events mocked via `vi.mock('../../config/socket.js')` + asserted with `toHaveBeenCalledWith`
+
+## Coverage Thresholds (enforced — `pnpm test:coverage` fails if not met)
+
+| Metric | Minimum |
+|---|---|
+| Statements | 80% |
+| Branches | 75% |
+| Functions | 80% |
+| Lines | 80% |
+
+Excluded from measurement: `src/server.ts`, `src/app.ts`, `src/config/env.ts`,
+`src/config/db.ts`, `src/config/socket.ts`, `src/docs/swagger.ts`, `src/scripts/**`
+(bootstrap/startup/operational code — not services, controllers, or middleware).
+
 ---
 
 ## AI Tooling

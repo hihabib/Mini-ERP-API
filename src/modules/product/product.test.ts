@@ -176,6 +176,24 @@ describe('Product module', () => {
 
       expect(res.status).toBe(401);
     });
+
+    it('returns 400 when image type is not jpeg/png/webp', async () => {
+      const res = await request
+        .post('/api/products')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('image', Buffer.from('not an image'), {
+          filename: 'file.txt',
+          contentType: 'text/plain',
+        })
+        .field('name', 'Widget X')
+        .field('sku', 'INV-TYPE')
+        .field('category', 'tools')
+        .field('purchasePrice', '10')
+        .field('sellingPrice', '20');
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/jpeg|png|webp/i);
+    });
   });
 
   // ── GET /api/products ─────────────────────────────────────────────────────────
@@ -365,6 +383,48 @@ describe('Product module', () => {
 
       // Old file should have been deleted
       await expect(fsPromises.access(oldFilePath)).rejects.toThrow();
+    });
+
+    it('returns 404 when product does not exist and cleans up the uploaded file', async () => {
+      const nonExistentId = '000000000000000000000001';
+
+      const res = await request
+        .patch(`/api/products/${nonExistentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('image', TEST_PNG, { filename: 'orphan.png', contentType: 'image/png' });
+
+      expect(res.status).toBe(404);
+
+      // No stray file should remain in UPLOAD_PATH
+      const files = await fsPromises.readdir(UPLOAD_PATH).catch(() => []);
+      expect(files).toHaveLength(0);
+    });
+
+    it('returns 409 when updating to a SKU that belongs to another product', async () => {
+      const existing = await Product.create({
+        name: 'Existing',
+        sku: 'TAKEN-SKU',
+        category: 'test',
+        purchasePrice: 5,
+        sellingPrice: 10,
+        imageUrl: '/uploads/e.png',
+      });
+      const target = await Product.create({
+        name: 'Target',
+        sku: 'TARGET-SKU',
+        category: 'test',
+        purchasePrice: 5,
+        sellingPrice: 10,
+        imageUrl: '/uploads/t.png',
+      });
+
+      // Try to change target's SKU to the one owned by existing
+      const res = await request
+        .patch(`/api/products/${target._id.toString()}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .field('sku', existing.sku);
+
+      expect(res.status).toBe(409);
     });
 
     it('returns 403 when user lacks product:update permission', async () => {

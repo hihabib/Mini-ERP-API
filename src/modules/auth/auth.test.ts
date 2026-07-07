@@ -24,6 +24,14 @@ testApp.get(
     sendSuccess(res, { message: 'ok', data: {} });
   },
 );
+// Route with ONLY requirePermission (no authenticate) — exercises the !req.user guard.
+testApp.get(
+  '/api/test/perm-only',
+  requirePermission('product:create'),
+  (_req: Request, res: Response) => {
+    sendSuccess(res, { message: 'ok', data: {} });
+  },
+);
 testApp.use(globalErrorHandler);
 
 const request = supertest(testApp);
@@ -186,6 +194,14 @@ describe('Auth module', () => {
       const res = await request.post('/api/auth/refresh');
       expect(res.status).toBe(401);
     });
+
+    it('returns 401 when refresh token is invalid/tampered', async () => {
+      const res = await request
+        .post('/api/auth/refresh')
+        .set('Cookie', 'refreshToken=this.is.not.a.valid.token');
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/invalid|expired/i);
+    });
   });
 
   // ── POST /api/auth/logout ─────────────────────────────────────────────────
@@ -203,6 +219,23 @@ describe('Auth module', () => {
       const logoutHeader = res.headers['set-cookie'];
       const setCookie = (Array.isArray(logoutHeader) ? logoutHeader[0] : logoutHeader) ?? '';
       expect(setCookie).toMatch(/refreshToken=;|refreshToken=$/);
+    });
+  });
+
+  // ── GET /api/auth/me — edge cases ─────────────────────────────────────────
+
+  describe('GET /api/auth/me — edge cases', () => {
+    it('returns 401 when the user account has been deactivated after token was issued', async () => {
+      const loginRes = await request
+        .post('/api/auth/login')
+        .send({ email: 'admin@test.com', password: 'Test@1234' });
+      const token = loginRes.body.data.accessToken as string;
+
+      // Deactivate the user after login
+      await User.findOneAndUpdate({ email: 'admin@test.com' }, { isActive: false });
+
+      const res = await request.get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(401);
     });
   });
 
@@ -240,6 +273,27 @@ describe('Auth module', () => {
     it('returns 401 when no token is provided', async () => {
       const res = await request.get('/api/test/product-create');
       expect(res.status).toBe(401);
+    });
+
+    it('returns 401 when requirePermission is reached without req.user set', async () => {
+      // Exercises the !req.user guard inside requirePermission (lines 11-12).
+      const res = await request.get('/api/test/perm-only');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 when the user role has been deleted after the token was issued', async () => {
+      const loginRes = await request
+        .post('/api/auth/login')
+        .send({ email: 'admin@test.com', password: 'Test@1234' });
+      const token = loginRes.body.data.accessToken as string;
+
+      // Delete the admin role — simulates a role being removed after token issue.
+      await Role.deleteMany({ name: 'Admin' });
+
+      const res = await request
+        .get('/api/test/product-create')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(403);
     });
   });
 });
