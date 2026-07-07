@@ -1,0 +1,28 @@
+services:
+  mongo:
+    image: mongo:8
+    container_name: mini-erp-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: mini-erp
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mini-erp-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_BASICAUTH: "false"
+    depends_on:
+      - mongo
+    profiles:
+      - admin
+
+volumes:
+  mongo-data:
